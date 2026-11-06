@@ -9,7 +9,8 @@ app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 
 async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('session_wa_2');
+    // تم تغيير اسم الجلسة إلى session_wa_3 لضمان نظافة السيرفر تماماً ومنع تعارض الكود القديم
+    const { state, saveCreds } = await useMultiFileAuthState('session_wa_3');
     
     const sock = makeWASocket({
         auth: state,
@@ -33,7 +34,7 @@ async function connectToWhatsApp() {
         }
     });
 
-    // طلب كود الربط برقم الهاتف تلقائياً
+    // طلب كود الربط برقم الهاتف مباشرة
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
@@ -46,7 +47,7 @@ async function connectToWhatsApp() {
             } catch (error) {
                 console.log('خطأ في طلب كود الربط:', error);
             }
-        }, 5000);
+        }, 4000);
     }
 
     // 1. ترحيب بالأعضاء الجدد
