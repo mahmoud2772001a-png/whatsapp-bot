@@ -30,12 +30,12 @@ async function connectToWhatsApp() {
         }
     });
 
-    // طلب كود الربط برقم الهاتف مباشرة بعد التأكد من عدم التسجيل
+    // طلب كود الربط برقم الهاتف مباشرة
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
                 const phoneNumber = "970569530453"; // رقمك
-                console.جاري_الطلب = 'جاري طلب كود الربط الآن...';
+                console.log('جاري طلب كود الربط الآن...');
                 let code = await sock.requestPairingCode(phoneNumber);
                 code = code?.match(/.{1,4}/g)?.join("-") || code;
                 console.log(`\n========================================`);
@@ -44,7 +44,7 @@ async function connectToWhatsApp() {
             } catch (error) {
                 console.log('خطأ في طلب كود الربط:', error);
             }
-        }, 6000); // 6 ثواني لضمان استقرار الاتصال أولاً
+        }, 6000);
     }
 }
 
