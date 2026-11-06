@@ -6,8 +6,8 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
-    "node-cron": "latest",
-    "pino": "latest"
+    "@whiskeysockets/baileys": "^6.7.13",
+    "express": "^4.19.2",
+    "pino": "^9.0.0"
   }
 }
