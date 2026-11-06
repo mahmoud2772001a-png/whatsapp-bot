@@ -33,9 +33,23 @@ async function connectToWhatsApp() {
         }
     });
 
-    // ----------------------------------------------------
-    // 1. الترحيب بالأعضاء الجدد عند انضمامهم للمجموعة
-    // ----------------------------------------------------
+    // طلب كود الربط برقم الهاتف تلقائياً
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                const phoneNumber = "970569530453"; // رقمك الشخصي
+                let code = await sock.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(`\n========================================`);
+                console.log(` كود الربط الخاص بك هو: ${code}`);
+                console.log(`========================================\n`);
+            } catch (error) {
+                console.log('خطأ في طلب كود الربط:', error);
+            }
+        }, 5000);
+    }
+
+    // 1. ترحيب بالأعضاء الجدد
     sock.ev.on('group-participants.update', async (update) => {
         const { id, participants, action } = update;
         if (action === 'add') {
@@ -46,9 +60,7 @@ async function connectToWhatsApp() {
         }
     });
 
-    // ----------------------------------------------------
-    // 2. مراقبة الرسائل (السلام، السب، الروابط، الملصقات، وإعلانات العمل)
-    // ----------------------------------------------------
+    // 2. مراقبة الرسائل (السلام، الروابط، الملصقات، السبام)
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const m = messages[0];
         if (!m.message) return;
@@ -56,13 +68,11 @@ async function connectToWhatsApp() {
 
         const remoteJid = m.key.remoteJid;
         
-        // التأكد أن الرسالة قادمة من مجموعة
         if (remoteJid.endsWith('@g.us')) {
             const messageType = Object.keys(m.message)[0];
             const messageText = m.message.conversation || 
                                 m.message.extendedTextMessage?.text || '';
 
-            // أداة مساعدة لحذف الرسالة المخالفة
             const deleteMessage = async () => {
                 try {
                     await sock.sendMessage(remoteJid, { 
@@ -74,71 +84,27 @@ async function connectToWhatsApp() {
                         } 
                     });
                 } catch (err) {
-                    console.log('فشل الحذف (تأكد أن البوت مشرف):', err);
+                    console.log('فشل الحذف:', err);
                 }
             };
 
             // أ) الرد التلقائي على السلام
             if (messageText.includes('السلام عليكم') || messageText.includes('سلام عليكم')) {
-                await sock.sendMessage(remoteJid, { text: 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك يا هلا!' });
+                await sock.sendMessage(remoteJid, { text: 'وعليكم السلام ورحمة الله وبركاته، أهلاً بك يا غالي!' });
                 return;
             }
 
-            // ب) قائمة الكلمات النابية أو السب والشتم (يمكنك تعديلها وإضافة كلمات أخرى)
-            const badWords = ['شتم1', 'شتم2', 'كلمة_نابية']; // ضع الكلمات الممنوعة هنا
-            const hasBadWord = badWords.some(word => messageText.includes(word));
-            if (hasBadWord) {
-                await deleteMessage();
-                console.log('تم حذف رسالة تحتوي على سب/شتم');
-                return;
-            }
-
-            // ج) إعلانات العمل والسبام المشبوهة
-            const jobSpamKeywords = ['وظيفة عن بعد', 'ربح سريع', 'دخل يومي', 'استثمار مضمون', 'تداول بربح', 'فرصة عمل خيالية', 'رأس مال بسيط'];
-            const isJobSpam = jobSpamKeywords.some(keyword => messageText.includes(keyword));
-            if (isJobSpam) {
-                await deleteMessage();
-                console.log('تم حذف إعلان عمل مشبوه/سبام');
-                return;
-            }
-
-            // د) فحص الروابط
+            // ب) الروابط والملصقات وإعلانات العمل المشبوهة
             const hasLink = /https?:\/\/[^\s]+|www\.[^\s]+/.test(messageText);
-
-            // هـ) فحص الملصقات
             const isSticker = messageType === 'stickerMessage';
+            const jobSpamKeywords = ['وظيفة عن بعد', 'ربح سريع', 'دخل يومي', 'استثمار مضمون', 'تداول بربح'];
+            const isJobSpam = jobSpamKeywords.some(kw => messageText.includes(kw));
 
-            // الحذف إذا كان رابطاً أو ملصقاً
-            if (hasLink || isSticker) {
+            if (hasLink || isSticker || isJobSpam) {
                 await deleteMessage();
-                console.log('تم حذف رابط أو ملصق');
             }
         }
     });
-
-    // ----------------------------------------------------
-    // 3. جدولة إغلاق المجموعة تلقائياً يومياً الساعة 10:30 مساءً (بتوقيت فلسطين)
-    // ----------------------------------------------------
-    setInterval(async () => {
-        const now = new Date();
-        // ملاحظة: سيرفرات Render تعمل بتوقيت UTC. الساعة 10:30 مساءً بتوقيت فلسطين (توقيت شتوي UTC+2) تعني الساعة 20:30 UTC.
-        const hours = now.getUTCHours() + 2; // تعديل حسب توقيت فلسطين
-        const minutes = now.getUTCMinutes();
-
-        // حدد هنا Jid المجموعات الخاصة بك التي تريد إغلاقها تلقائياً
-        const targetGroupJid = '123456789-group@g.us'; // استبدل هذا بـ Jid المجموعة الحقيقي
-
-        if (hours === 22 && minutes === 30) {
-            try {
-                // إغلاق المجموعة بحيث لا يرسل الرسائل إلا المشرفون ('announcement')
-                await sock.groupSettingUpdate(targetGroupJid, 'announcement');
-                await sock.sendMessage(targetGroupJid, { text: 'تم إغلاق المجموعة تلقائياً لليلة. تصبحون على خير 🌙' });
-                console.log('تم إغلاق المجموعة بنجاح في 10:30 مساءً');
-            } catch (error) {
-                console.log('فشل إغلاق المجموعة:', error);
-            }
-        }
-    }, 60000); // يفحص الوقت كل دقيقة
 }
 
 connectToWhatsApp();
